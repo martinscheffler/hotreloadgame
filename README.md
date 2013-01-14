@@ -7,9 +7,9 @@ I also added some hello world code for OpenGL 3.0. The X window is kept open bet
 Tested on SUSE 12.2.
 
 Usage: 
-First compile the hotloader with ./buildhotloader
-Then start the compile process with ./recompile
-Finally start the game with ./hotloader.
-A simple 3d scene with a bright background color should appear.
-Try changing some code in game.c, for example the clear color. As soon as you
-save, the background color in the running game should change.
+* First compile the hotloader with ./buildhotloader
+* Then start the compile process with ./recompile
+* Finally start the game with ./hotloader.
+  A simple 3d scene with a bright background color should appear.
+  Try changing some code in game.c, for example the clear color. As soon as you
+  save, the background color in the running game should change.
