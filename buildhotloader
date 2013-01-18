@@ -1,0 +1,2 @@
+#!/bin/sh
+gcc -o hotloader -ldl  -D___BUILD_LINUX_GNU_X86_64___ hotloader.c
