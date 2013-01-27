@@ -6,7 +6,11 @@
 #include <math.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
+
 #endif
+
+#include <stdio.h>
+
 // copied from glext.h:
 GLAPI void APIENTRY glAttachShader (GLuint program, GLuint shader);
 GLAPI void APIENTRY glBindBuffer (GLenum target, GLuint buffer);
@@ -31,12 +35,18 @@ GLAPI void APIENTRY glUseProgram (GLuint program);
 GLAPI void APIENTRY glVertexAttribPointer (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *pointer);
 GLAPI const GLubyte * GLAPIENTRY gluErrorString (GLenum error);
 #include <stdio.h>
+#include <assert.h>
+
 // other externals to keep the number of included headers down:
 extern void exit (int __status) __THROW __attribute__ ((__noreturn__));
 struct FILE;
 extern int fflush (FILE *__stream);
 extern void *memcpy (void *__restrict __dest, __const void *__restrict __src, size_t __n) __THROW __nonnull ((1, 2));
 extern int printf (__const char *__restrict __format, ...);
+extern void *malloc(size_t size);
+extern void free(void *ptr);
+extern char *strtok(char *str, const char *delim);
+
 
 /*============================================================*/
 #if (___CC_GNU___)
@@ -486,9 +496,68 @@ GLXContext createContext(Display* display, GLXFBConfig *fbc) {
     return ctx;
 }
 
+
+void objLoaderCountElements(FILE* file, unsigned int* numverts, unsigned int* numnormals,
+                            unsigned int* numtexcoords, unsigned int* numfaces)
+{
+    (*numverts) = (*numnormals) = (*numtexcoords) = (*numfaces) = 0;
+    char buf[256];
+    while(fgets (buf , 256 , file) != NULL) {
+        if(buf[0] == 'v' && buf[1] == ' ')      (*numverts)++;
+        else if(buf[0] == 'f' && buf[1] == ' ') (*numfaces)++;
+        else if(buf[0] == 'v' && buf[1] == 't') (*numtexcoords)++;
+        else if(buf[0] == 'v' && buf[1] == 'n') (*numnormals)++;
+    }
+}
+
+
+void objLoaderLoadBuf(FILE* file, float* vb, float* nb, float* tcb, UP* fb) {
+    char buf[256];
+    while(fgets (buf, 256, file) != NULL) {
+        if(buf[0] == 'v' && buf[1] == ' ') {
+            sscanf(buf + 2, "%f %f %f", vb++, vb++, vb++);
+        }
+        else if(buf[0] == 'f' && buf[1] == ' ') {
+            char* f = strtok(buf + 2, " "); sscanf(f, "%u/%u/%u", fb++,fb++,fb++);
+            f = strtok(NULL, " "); sscanf(f, "%u/%u/%u", fb++,fb++,fb++);
+            f = strtok(NULL, " "); sscanf(f, "%u/%u/%u", fb++,fb++,fb++);
+        }
+        else if(buf[0] == 'v' && buf[1] == 'n') {
+            sscanf(buf + 3, "%f %f %f", nb++, nb++, nb++);
+        }
+        else if(buf[0] == 'v' && buf[1] == 't') {
+            sscanf(buf + 3, "%f %f", tcb++, tcb++);
+        }
+    }
+}
+
+
+void objLoaderLoadFile(const char* path) {
+    FILE *fp = fopen(path, "r");
+    assert(fp != NULL);
+    unsigned int numverts, numnormals, numtexcoords, numfaces;
+    objLoaderCountElements(fp, &numverts, &numnormals, &numtexcoords, &numfaces);
+    printf("Verts: %d Faces: %d\n", numverts, numnormals, numtexcoords, numfaces);
+    float* vertbuf = (float*)malloc(sizeof(float) * 3 * numverts);
+    float* normbuf = (float*)malloc(sizeof(float) * 3 * numverts);
+    float* tcbuf   = (float*)malloc(sizeof(float) * 2 * numverts);
+    UP* facebuf    = (UP*)   malloc(sizeof(UP)    * 9 * numfaces);
+    fseek(fp, 0, 0);
+    objLoaderLoadBuf(fp, vertbuf, normbuf, tcbuf, facebuf);
+    fclose(fp);
+    printf("Numverts: %d" , numverts);
+
+    free(vertbuf);
+    free(normbuf);
+    free(tcbuf);
+    free(facebuf);
+}
+
+
 //////////////////////////////////// Hot Loading main function ////////////////////////////////////
 void Hot(HotArgT* arg) {
 
+    objLoaderLoadFile("physics_crate.obj");
     Display *display = XOpenDisplay(0);
     GLXFBConfig *fbc = fbConf(display);
     if (HotOpen(arg) == 0) {
