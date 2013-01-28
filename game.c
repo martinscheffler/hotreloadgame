@@ -123,7 +123,7 @@ typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXC
 
 
 //////////////////////////////////// GL 3 Hello World Code ////////////////////////////////////
-const char* vertexshader = ""
+/*const char* vertexshader = ""
 "#version 150\n"
 "uniform mat4 viewMatrix, projMatrix;\n"
 "in vec4 position; in vec3 color; out vec3 Color;\n"
@@ -137,6 +137,22 @@ const char* fragmentshader = ""
 "in vec3 Color; out vec4 outputF;\n"
 "void main() {\n"
 "  outputF = vec4(Color,1.0);\n"
+"}\n";*/
+
+const char* vertexshader = ""
+"#version 150\n"
+"uniform mat4 viewMatrix, projMatrix;\n"
+"in vec4 position;\n"
+"void main() {\n"
+"  gl_Position = projMatrix * viewMatrix * position;\n"
+"}\n";
+
+
+const char* fragmentshader = ""
+"#version 150\n"
+"out vec4 outputF;\n"
+"void main() {\n"
+"  outputF = vec4(0,1,0,1);\n"
 "}\n";
 
 // Data for drawing Axis
@@ -316,8 +332,8 @@ void setupBuffers() {
     // bind buffer for colors and copy data into buffer
     glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(colors1), colors1, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(colorLoc);
-    glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
+   // glEnableVertexAttribArray(colorLoc);
+   // glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
     // VAO for second triangle
     glBindVertexArray(vao[1]);
     // Generate two slots for the vertex and color buffers
@@ -330,8 +346,8 @@ void setupBuffers() {
     // bind buffer for colors and copy data into buffer
     glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(colors2), colors2, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(colorLoc);
-    glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
+    //glEnableVertexAttribArray(colorLoc);
+   // glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
     // This VAO is for the Axis
     glBindVertexArray(vao[2]);
     // Generate two slots for the vertex and color buffers
@@ -344,8 +360,8 @@ void setupBuffers() {
     // bind buffer for colors and copy data into buffer
     glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(colorAxis), colorAxis, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(colorLoc);
-    glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
+   // glEnableVertexAttribArray(colorLoc);
+//    glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
 }
 
 void setUniforms() {
@@ -496,6 +512,14 @@ GLXContext createContext(Display* display, GLXFBConfig *fbc) {
     return ctx;
 }
 
+//////////////////////////////////// Functions for loading .obj files ////////////////////////////////////
+
+struct Mesh
+{
+    GLuint _vertbuf;
+    GLuint _vertarray;
+    UP _numFaces;
+};
 
 void objLoaderCountElements(FILE* file, unsigned int* numverts, unsigned int* numnormals,
                             unsigned int* numtexcoords, unsigned int* numfaces)
@@ -532,12 +556,13 @@ void objLoaderLoadBuf(FILE* file, float* vb, float* nb, float* tcb, UP* fb) {
 }
 
 
-void objLoaderLoadFile(const char* path) {
+
+void objLoaderLoadFile(struct Mesh* m, const char* path) {
     FILE *fp = fopen(path, "r");
     assert(fp != NULL);
     unsigned int numverts, numnormals, numtexcoords, numfaces;
     objLoaderCountElements(fp, &numverts, &numnormals, &numtexcoords, &numfaces);
-    printf("Verts: %d Faces: %d\n", numverts, numnormals, numtexcoords, numfaces);
+
     float* vertbuf = (float*)malloc(sizeof(float) * 3 * numverts);
     float* normbuf = (float*)malloc(sizeof(float) * 3 * numverts);
     float* tcbuf   = (float*)malloc(sizeof(float) * 2 * numverts);
@@ -545,19 +570,47 @@ void objLoaderLoadFile(const char* path) {
     fseek(fp, 0, 0);
     objLoaderLoadBuf(fp, vertbuf, normbuf, tcbuf, facebuf);
     fclose(fp);
-    printf("Numverts: %d" , numverts);
+
+    float* tribuf = (float*)malloc(sizeof(float) * 9 * numfaces);
+    for(UP i = 0; i < numfaces; ++i)
+    {
+        UP vidx = facebuf[i * 9 + 0];
+        tribuf[i * 9 + 0] = vertbuf[vidx + 0];
+        tribuf[i * 9 + 1] = vertbuf[vidx + 1];
+        tribuf[i * 9 + 2] = vertbuf[vidx + 2];
+        vidx = facebuf[i * 9 + 3];
+        tribuf[i * 9 + 3] = vertbuf[vidx + 0];
+        tribuf[i * 9 + 4] = vertbuf[vidx + 1];
+        tribuf[i * 9 + 5] = vertbuf[vidx + 2];
+        vidx = facebuf[i * 9 + 6];
+        tribuf[i * 9 + 6] = vertbuf[vidx + 0];
+        tribuf[i * 9 + 7] = vertbuf[vidx + 1];
+        tribuf[i * 9 + 8] = vertbuf[vidx + 2];
+
+        printf("Added tri %f %f %f,%f %f %f,%f %f %f\n", tribuf[i * 9 + 0],tribuf[i * 9 + 1],tribuf[i * 9 + 2],tribuf[i * 9 + 3],tribuf[i * 9 + 4],tribuf[i * 9 + 5],tribuf[i * 9 + 6],tribuf[i * 9 + 7],tribuf[i * 9 + 8]);
+    }
+
+    glGenVertexArrays(1, &m->_vertarray);
+    glBindVertexArray(m->_vertarray);
+    glGenBuffers(1, &m->_vertbuf);
+    glBindBuffer(GL_ARRAY_BUFFER, m->_vertbuf);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(tribuf), tribuf, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(vertexLoc);
+    glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
+
+    m->_numFaces = numfaces;
 
     free(vertbuf);
     free(normbuf);
     free(tcbuf);
     free(facebuf);
+    free(tribuf);
 }
 
 
 //////////////////////////////////// Hot Loading main function ////////////////////////////////////
 void Hot(HotArgT* arg) {
 
-    objLoaderLoadFile("physics_crate.obj");
     Display *display = XOpenDisplay(0);
     GLXFBConfig *fbc = fbConf(display);
     if (HotOpen(arg) == 0) {
@@ -574,6 +627,9 @@ void Hot(HotArgT* arg) {
     changeSize(800, 600);
     printGLErrors();
 
+    struct Mesh m;
+    objLoaderLoadFile(&m, "physics_crate.obj");
+    printf("Tris: %u\n", m._numFaces);
     unsigned int lib_load_time = arg->filetime(___HOT___);
     while(lib_load_time == arg->filetime(___HOT___)) {
 
@@ -588,6 +644,7 @@ void Hot(HotArgT* arg) {
        glBindVertexArray(vao[0]); glDrawArrays(GL_TRIANGLES, 0, 3);
        glBindVertexArray(vao[1]); glDrawArrays(GL_TRIANGLES, 0, 3);
        glBindVertexArray(vao[2]); glDrawArrays(GL_LINES, 0, 6);
+       glBindVertexArray(m._vertarray); glDrawArrays(GL_TRIANGLES, 0, m._numFaces);
        glXSwapBuffers (display, all.window);
 
        printGLErrors();
