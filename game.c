@@ -519,10 +519,10 @@ struct Mesh
     GLuint _vertbuf;
     GLuint _vertarray;
     UP _numFaces;
+    float* _verts;
 };
 
-void objLoaderCountElements(FILE* file, unsigned int* numverts, unsigned int* numnormals,
-                            unsigned int* numtexcoords, unsigned int* numfaces)
+void objLoaderCountElements(FILE* file, UP* numverts, UP* numnormals, UP* numtexcoords, UP* numfaces)
 {
     (*numverts) = (*numnormals) = (*numtexcoords) = (*numfaces) = 0;
     char buf[256];
@@ -560,51 +560,47 @@ void objLoaderLoadBuf(FILE* file, float* vb, float* nb, float* tcb, UP* fb) {
 void objLoaderLoadFile(struct Mesh* m, const char* path) {
     FILE *fp = fopen(path, "r");
     assert(fp != NULL);
-    unsigned int numverts, numnormals, numtexcoords, numfaces;
-    objLoaderCountElements(fp, &numverts, &numnormals, &numtexcoords, &numfaces);
+    UP numverts, numnormals, numtexcoords;
+    objLoaderCountElements(fp, &numverts, &numnormals, &numtexcoords, &m->_numFaces);
 
     float* vertbuf = (float*)malloc(sizeof(float) * 3 * numverts);
     float* normbuf = (float*)malloc(sizeof(float) * 3 * numverts);
     float* tcbuf   = (float*)malloc(sizeof(float) * 2 * numverts);
-    UP* facebuf    = (UP*)   malloc(sizeof(UP)    * 9 * numfaces);
+    UP* facebuf    = (UP*)   malloc(sizeof(UP)    * 9 * m->_numFaces);
     fseek(fp, 0, 0);
     objLoaderLoadBuf(fp, vertbuf, normbuf, tcbuf, facebuf);
     fclose(fp);
 
-    float* tribuf = (float*)malloc(sizeof(float) * 9 * numfaces);
-    for(UP i = 0; i < numfaces; ++i)
-    {
-        UP vidx = facebuf[i * 9 + 0];
-        tribuf[i * 9 + 0] = vertbuf[vidx + 0];
-        tribuf[i * 9 + 1] = vertbuf[vidx + 1];
-        tribuf[i * 9 + 2] = vertbuf[vidx + 2];
-        vidx = facebuf[i * 9 + 3];
-        tribuf[i * 9 + 3] = vertbuf[vidx + 0];
-        tribuf[i * 9 + 4] = vertbuf[vidx + 1];
-        tribuf[i * 9 + 5] = vertbuf[vidx + 2];
-        vidx = facebuf[i * 9 + 6];
-        tribuf[i * 9 + 6] = vertbuf[vidx + 0];
-        tribuf[i * 9 + 7] = vertbuf[vidx + 1];
-        tribuf[i * 9 + 8] = vertbuf[vidx + 2];
+    size_t bufsize = sizeof(float) * 12 * m->_numFaces;
+    m->_verts = (float*)malloc(bufsize);
 
-        printf("Added tri %f %f %f,%f %f %f,%f %f %f\n", tribuf[i * 9 + 0],tribuf[i * 9 + 1],tribuf[i * 9 + 2],tribuf[i * 9 + 3],tribuf[i * 9 + 4],tribuf[i * 9 + 5],tribuf[i * 9 + 6],tribuf[i * 9 + 7],tribuf[i * 9 + 8]);
+    for(UP i = 0; i < m->_numFaces; ++i)
+    {
+        UP vidx = facebuf[i * 9];
+        float* vp = &m->_verts[i * 12];
+        for(UP j = 0; j < 3; ++j) {
+            *(vp++) = vertbuf[vidx++];
+            *(vp++) = vertbuf[vidx++];
+            *(vp++) = vertbuf[vidx++];
+            *(vp++) = 1;
+        }
     }
 
     glGenVertexArrays(1, &m->_vertarray);
     glBindVertexArray(m->_vertarray);
     glGenBuffers(1, &m->_vertbuf);
     glBindBuffer(GL_ARRAY_BUFFER, m->_vertbuf);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(tribuf), tribuf, GL_STATIC_DRAW);
+
+    glBufferData(GL_ARRAY_BUFFER, bufsize, m->_verts, GL_STATIC_DRAW);
     glEnableVertexAttribArray(vertexLoc);
     glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
 
-    m->_numFaces = numfaces;
 
     free(vertbuf);
     free(normbuf);
     free(tcbuf);
     free(facebuf);
-    free(tribuf);
+
 }
 
 
@@ -630,6 +626,15 @@ void Hot(HotArgT* arg) {
     struct Mesh m;
     objLoaderLoadFile(&m, "physics_crate.obj");
     printf("Tris: %u\n", m._numFaces);
+
+    for(int i = 0; i < m._numFaces; ++i)
+    {
+        printf("Tri %f %f %f,%f %f %f,%f %f %f\n",
+               m._verts[i * 12 + 0],m._verts[i * 12 + 1],m._verts[i * 12 + 2],
+               m._verts[i * 12 + 4],m._verts[i * 12 + 5],m._verts[i * 12 + 6],
+               m._verts[i * 12 + 8],m._verts[i * 12 + 9],m._verts[i * 12 + 10]);
+    }
+    fflush(0);
     unsigned int lib_load_time = arg->filetime(___HOT___);
     while(lib_load_time == arg->filetime(___HOT___)) {
 
@@ -644,7 +649,7 @@ void Hot(HotArgT* arg) {
        glBindVertexArray(vao[0]); glDrawArrays(GL_TRIANGLES, 0, 3);
        glBindVertexArray(vao[1]); glDrawArrays(GL_TRIANGLES, 0, 3);
        glBindVertexArray(vao[2]); glDrawArrays(GL_LINES, 0, 6);
-       glBindVertexArray(m._vertarray); glDrawArrays(GL_TRIANGLES, 0, m._numFaces);
+       glBindVertexArray(m._vertarray); glDrawArrays(GL_TRIANGLES, 0, m._numFaces * 3);
        glXSwapBuffers (display, all.window);
 
        printGLErrors();
