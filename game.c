@@ -123,36 +123,23 @@ typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXC
 
 
 //////////////////////////////////// GL 3 Hello World Code ////////////////////////////////////
-/*const char* vertexshader = ""
-"#version 150\n"
-"uniform mat4 viewMatrix, projMatrix;\n"
-"in vec4 position; in vec3 color; out vec3 Color;\n"
-"void main() {\n"
-"  Color = color; gl_Position = projMatrix * viewMatrix * position;\n"
-"}\n";
 
-
-const char* fragmentshader = ""
-"#version 150\n"
-"in vec3 Color; out vec4 outputF;\n"
-"void main() {\n"
-"  outputF = vec4(Color,1.0);\n"
-"}\n";*/
 
 const char* vertexshader = ""
 "#version 150\n"
 "uniform mat4 viewMatrix, projMatrix;\n"
-"in vec4 position;\n"
+"in vec4 position;in vec2 texcoord; out vec2 Texcoord;\n"
 "void main() {\n"
-"  gl_Position = projMatrix * viewMatrix * position;\n"
+"  Texcoord = texcoord; gl_Position = projMatrix * viewMatrix * position;\n"
 "}\n";
 
 
 const char* fragmentshader = ""
 "#version 150\n"
-"out vec4 outputF;\n"
+"uniform sampler2D diffuseTex; in vec2 Texcoord;out vec4 outputF;\n"
 "void main() {\n"
-"  outputF = vec4(0,1,0,1);\n"
+"  vec4 diffuseColor = texture(diffuseTex, Texcoord.st);\n"
+"  outputF = diffuseColor;\n"
 "}\n";
 
 // Data for drawing Axis
@@ -165,30 +152,16 @@ float verticesAxis[] = {-20.0f, 0.0f, 0.0f, 1.0f,
             0.0f, 0.0f, -20.0f, 1.0f,
             0.0f, 0.0f,  20.0f, 1.0f};
 
-float colorAxis[] = {   0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f};
-
 // Data for triangle 1
 float vertices1[] = {   -3.0f, 0.0f, -5.0f, 1.0f,
             -1.0f, 0.0f, -5.0f, 1.0f,
             -2.0f, 2.0f, -5.0f, 1.0f};
 
-float colors1[] = { 0.0f, 0.0f, 1.0f, 1.0f,
-            0.0f, 0.0f, 1.0f, 1.0f,
-            0.0f,0.0f, 1.0f, 1.0f};
 
 // Data for triangle 2
 float vertices2[] = {   1.0f, 0.0f, -5.0f, 1.0f,
             3.0f, 0.0f, -5.0f, 1.0f,
             2.0f, 2.0f, -5.0f, 1.0f};
-
-float colors2[] = { 1.0f, 0.0f, 0.0f, 1.0f,
-            0.0f, 1.0f, 0.0f, 1.0f,
-            0.0f,0.0f, 1.0f, 1.0f};
 
 #define M_PI       3.14159265358979323846
 
@@ -196,8 +169,7 @@ float colors2[] = { 1.0f, 0.0f, 0.0f, 1.0f,
 GLuint p,v,f;
 
 // Vertex Attribute Locations
-GLuint vertexLoc, colorLoc;
-
+GLuint vertexLoc, texcoordLoc, diffuseTexLoc;
 // Uniform variable Locations
 GLuint projMatrixLoc, viewMatrixLoc;
 
@@ -317,7 +289,7 @@ void changeSize(int w, int h) {
 
 void setupBuffers() {
 
-    GLuint buffers[2];
+    GLuint buffers[1];
     glGenVertexArrays(3, vao);
     // VAO for first triangle
     glBindVertexArray(vao[0]);
@@ -329,45 +301,32 @@ void setupBuffers() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices1), vertices1, GL_STATIC_DRAW);
     glEnableVertexAttribArray(vertexLoc);
     glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
-    // bind buffer for colors and copy data into buffer
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colors1), colors1, GL_STATIC_DRAW);
-   // glEnableVertexAttribArray(colorLoc);
-   // glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
     // VAO for second triangle
     glBindVertexArray(vao[1]);
-    // Generate two slots for the vertex and color buffers
-    glGenBuffers(2, buffers);
+    glGenBuffers(1, buffers);
     // bind buffer for vertices and copy data into buffer
     glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
     glEnableVertexAttribArray(vertexLoc);
     glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
-    // bind buffer for colors and copy data into buffer
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colors2), colors2, GL_STATIC_DRAW);
-    //glEnableVertexAttribArray(colorLoc);
-   // glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
+
     // This VAO is for the Axis
     glBindVertexArray(vao[2]);
     // Generate two slots for the vertex and color buffers
-    glGenBuffers(2, buffers);
+    glGenBuffers(1, buffers);
     // bind buffer for vertices and copy data into buffer
     glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verticesAxis), verticesAxis, GL_STATIC_DRAW);
     glEnableVertexAttribArray(vertexLoc);
     glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
-    // bind buffer for colors and copy data into buffer
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colorAxis), colorAxis, GL_STATIC_DRAW);
-   // glEnableVertexAttribArray(colorLoc);
-//    glVertexAttribPointer(colorLoc, 4, GL_FLOAT, 0, 0, 0);
+
 }
 
 void setUniforms() {
     // must be called after glUseProgram
     glUniformMatrix4fv(projMatrixLoc,  1, 0, projMatrix);
     glUniformMatrix4fv(viewMatrixLoc,  1, 0, viewMatrix);
+    glUniform1i(diffuseTexLoc, 0);
 }
 
 void processNormalKeys(unsigned char key, int x, int y) {
@@ -404,10 +363,13 @@ GLuint setupShaders() {
     glAttachShader(p,f);
     glBindFragDataLocation(p, 0, "outputF");
     glLinkProgram(p);
-    vertexLoc = glGetAttribLocation(p,"position");
-    colorLoc = glGetAttribLocation(p, "color");
+    vertexLoc     = glGetAttribLocation(p,"position");
+    texcoordLoc   = glGetAttribLocation(p, "texcoord");
+    diffuseTexLoc = glGetUniformLocation(p, "diffuseTex");
     projMatrixLoc = glGetUniformLocation(p, "projMatrix");
     viewMatrixLoc = glGetUniformLocation(p, "viewMatrix");
+
+    printf("Dif: %u Texcoord: %u", diffuseTexLoc, texcoordLoc);fflush(0);
     return p;
 }
 
@@ -516,91 +478,137 @@ GLXContext createContext(Display* display, GLXFBConfig *fbc) {
 
 struct Mesh
 {
-    GLuint _vertbuf;
-    GLuint _vertarray;
-    UP _numFaces;
-    float* _verts;
+    GLuint _vao;
+    GLuint _diffuseTex;
+    unsigned int _numFaces;
+    unsigned int _numVerts;
 };
 
-void objLoaderCountElements(FILE* file, UP* numverts, UP* numnormals, UP* numtexcoords, UP* numfaces)
+
+static void readBMP32bits(const char* path, unsigned int w, unsigned int h)
 {
-    (*numverts) = (*numnormals) = (*numtexcoords) = (*numfaces) = 0;
-    char buf[256];
-    while(fgets (buf , 256 , file) != NULL) {
-        if(buf[0] == 'v' && buf[1] == ' ')      (*numverts)++;
-        else if(buf[0] == 'f' && buf[1] == ' ') (*numfaces)++;
-        else if(buf[0] == 'v' && buf[1] == 't') (*numtexcoords)++;
-        else if(buf[0] == 'v' && buf[1] == 'n') (*numnormals)++;
-    }
+  FILE *fp = fopen(path, "r"); assert(fp != NULL);
+  fseek(fp, 54, SEEK_SET); // ignore header
+  GLbyte* pixels = malloc(w * h * 3);
+  fread(pixels,w * h * 3,1,fp);
+  fclose(fp);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 512, 512, 0, GL_BGR, GL_UNSIGNED_BYTE, pixels);
+  free(pixels);
 }
-
-
-void objLoaderLoadBuf(FILE* file, float* vb, float* nb, float* tcb, UP* fb) {
-    char buf[256];
-    while(fgets (buf, 256, file) != NULL) {
-        if(buf[0] == 'v' && buf[1] == ' ') {
-            sscanf(buf + 2, "%f %f %f", vb++, vb++, vb++);
-        }
-        else if(buf[0] == 'f' && buf[1] == ' ') {
-            char* f = strtok(buf + 2, " "); sscanf(f, "%u/%u/%u", fb++,fb++,fb++);
-            f = strtok(NULL, " "); sscanf(f, "%u/%u/%u", fb++,fb++,fb++);
-            f = strtok(NULL, " "); sscanf(f, "%u/%u/%u", fb++,fb++,fb++);
-        }
-        else if(buf[0] == 'v' && buf[1] == 'n') {
-            sscanf(buf + 3, "%f %f %f", nb++, nb++, nb++);
-        }
-        else if(buf[0] == 'v' && buf[1] == 't') {
-            sscanf(buf + 3, "%f %f", tcb++, tcb++);
-        }
-    }
-}
-
-
 
 void objLoaderLoadFile(struct Mesh* m, const char* path) {
-    FILE *fp = fopen(path, "r");
-    assert(fp != NULL);
-    UP numverts, numnormals, numtexcoords;
-    objLoaderCountElements(fp, &numverts, &numnormals, &numtexcoords, &m->_numFaces);
+    unsigned int numnormals = 0, numtexcoords = 0;
+    char buf[256];
+    FILE *fp;
+    m->_numFaces = m->_numVerts = 0;
+    fp = fopen(path, "r"); assert(fp != NULL);
 
-    float* vertbuf = (float*)malloc(sizeof(float) * 3 * numverts);
-    float* normbuf = (float*)malloc(sizeof(float) * 3 * numverts);
-    float* tcbuf   = (float*)malloc(sizeof(float) * 2 * numverts);
-    UP* facebuf    = (UP*)   malloc(sizeof(UP)    * 9 * m->_numFaces);
-    fseek(fp, 0, 0);
-    objLoaderLoadBuf(fp, vertbuf, normbuf, tcbuf, facebuf);
-    fclose(fp);
+    // get number of verts, faces etc
+    while(fgets(buf , 256 , fp) != NULL) {
+        if(buf[0] == 'v' && buf[1] == ' ')      m->_numVerts++;
+        else if(buf[0] == 'f' && buf[1] == ' ') m->_numFaces++;
+        else if(buf[0] == 'v' && buf[1] == 't') numtexcoords++;
+        else if(buf[0] == 'v' && buf[1] == 'n') numnormals++;
+    }
 
-    size_t bufsize = sizeof(float) * 12 * m->_numFaces;
-    m->_verts = (float*)malloc(bufsize);
+    assert(numtexcoords == m->_numVerts);
+    assert(numnormals == m->_numVerts);
 
-    for(UP i = 0; i < m->_numFaces; ++i)
-    {
-        UP vidx = facebuf[i * 9];
-        float* vp = &m->_verts[i * 12];
-        for(UP j = 0; j < 3; ++j) {
-            *(vp++) = vertbuf[vidx++];
-            *(vp++) = vertbuf[vidx++];
-            *(vp++) = vertbuf[vidx++];
-            *(vp++) = 1;
+    // allocate memory for storing verts etc
+    float *vb, *vertbuf, *normbuf, *nb, *tcb, *tcbuf;
+    unsigned int *facebuf, *fb;
+    vertbuf = vb  = malloc(sizeof(float) * 3 * m->_numVerts);
+    normbuf = nb  = malloc(sizeof(float) * 3 * m->_numVerts);
+    tcbuf   = tcb = malloc(sizeof(float) * 2 * m->_numVerts);
+    facebuf = fb  = malloc(sizeof(unsigned int) * 9 * m->_numFaces);
+
+    rewind(fp);
+    while(fgets (buf, 256, fp) != NULL) {
+        if(buf[0] == 'v' && buf[1] == ' ') {
+            sscanf(buf + 2, "%f %f %f", vb, vb + 1, vb + 2);
+            vb += 3;
+        }
+        else if(buf[0] == 'f' && buf[1] == ' ') {
+            char* f = strtok(buf + 2, " "); sscanf(f, "%u/%u/%u", fb + 0,fb + 1,fb + 2);
+            f = strtok(NULL, " ");          sscanf(f, "%u/%u/%u", fb + 3,fb + 4,fb + 5);
+            f = strtok(NULL, " ");          sscanf(f, "%u/%u/%u", fb + 6,fb + 7,fb + 8);
+            fb += 9;
+        }
+        else if(buf[0] == 'v' && buf[1] == 'n') {
+            sscanf(buf + 3, "%f %f %f", nb, nb + 1, nb + 2);
+            nb += 3;
+        }
+        else if(buf[0] == 'v' && buf[1] == 't') {
+            sscanf(buf + 3, "%f %f", tcb, tcb + 1);
+            tcb += 2;
         }
     }
 
-    glGenVertexArrays(1, &m->_vertarray);
-    glBindVertexArray(m->_vertarray);
-    glGenBuffers(1, &m->_vertbuf);
-    glBindBuffer(GL_ARRAY_BUFFER, m->_vertbuf);
+    fclose(fp);
 
-    glBufferData(GL_ARRAY_BUFFER, bufsize, m->_verts, GL_STATIC_DRAW);
+    // Now create VBOs from data
+    float* vbo, *vp;
+    size_t vbufsize = sizeof(float) * 9 * m->_numFaces;
+    vbo = vp = (float*)malloc(vbufsize);
+
+    float *tcbo, *tcp;
+    size_t tcbufsize = sizeof(float) * 6 * m->_numFaces;
+    tcbo = tcp = (float*)malloc(tcbufsize);
+
+    fb = facebuf;
+    unsigned int i,j,k;
+    for(i = 0; i < m->_numFaces * 9; ++i) {
+        if(i % 3 == 0) { // read vertex data
+            k = ((*fb) - 1) * 3;
+            for(j = 0; j < 3; ++j) *(vp++) = vertbuf[k  + j];
+        }
+        else if(i % 3 == 1) { // read tex coord data
+            k = ((*fb) - 1 ) * 2;
+            for(j = 0; j < 2; ++j) *(tcp++) = tcbuf[k + j];
+        }
+        ++fb;
+    }
+    for(i = 0; i < numtexcoords; ++i) {
+        printf("Vrt %f %f %f tc %f %f\n", vbo[i * 3], vbo[i * 3 + 1], vbo[i * 3 + 2], tcbo[i * 2], tcbo[i * 2 + 1]);
+    }
+    fflush(0);
+
+    // bind vertex array object
+    glGenVertexArrays(1, &m->_vao);
+    glBindVertexArray(m->_vao);
+
+    GLuint buffers[2];
+    glGenBuffers(2, buffers);
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    glBufferData(GL_ARRAY_BUFFER, vbufsize, vbo, GL_STATIC_DRAW);
     glEnableVertexAttribArray(vertexLoc);
-    glVertexAttribPointer(vertexLoc, 4, GL_FLOAT, 0, 0, 0);
+    glVertexAttribPointer(vertexLoc, 3, GL_FLOAT, 0, 0, 0);
 
+    // tex coord array
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+    glBufferData(GL_ARRAY_BUFFER, tcbufsize, tcbo, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(texcoordLoc);
+    glVertexAttribPointer(texcoordLoc, 2, GL_FLOAT, 0, 0, 0);
+    glEnableVertexAttribArray(texcoordLoc);
 
-    free(vertbuf);
-    free(normbuf);
-    free(tcbuf);
-    free(facebuf);
+    free(tcbo);
+    free(vertbuf); free(normbuf); free(tcbuf); free(facebuf); free(vbo);
 
+    glGenTextures(1, &m->_diffuseTex);
+
+    glBindTexture(GL_TEXTURE_2D, m->_diffuseTex);
+    glActiveTexture(GL_TEXTURE0 + 0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+
+    printf("Dif: %u", diffuseTexLoc);fflush(0);
+
+    readBMP32bits("kitten.bmp", 512, 512);
 }
 
 
@@ -623,18 +631,10 @@ void Hot(HotArgT* arg) {
     changeSize(800, 600);
     printGLErrors();
 
+    glEnable(GL_CULL_FACE);
     struct Mesh m;
     objLoaderLoadFile(&m, "physics_crate.obj");
-    printf("Tris: %u\n", m._numFaces);
 
-    for(int i = 0; i < m._numFaces; ++i)
-    {
-        printf("Tri %f %f %f,%f %f %f,%f %f %f\n",
-               m._verts[i * 12 + 0],m._verts[i * 12 + 1],m._verts[i * 12 + 2],
-               m._verts[i * 12 + 4],m._verts[i * 12 + 5],m._verts[i * 12 + 6],
-               m._verts[i * 12 + 8],m._verts[i * 12 + 9],m._verts[i * 12 + 10]);
-    }
-    fflush(0);
     unsigned int lib_load_time = arg->filetime(___HOT___);
     while(lib_load_time == arg->filetime(___HOT___)) {
 
@@ -649,7 +649,8 @@ void Hot(HotArgT* arg) {
        glBindVertexArray(vao[0]); glDrawArrays(GL_TRIANGLES, 0, 3);
        glBindVertexArray(vao[1]); glDrawArrays(GL_TRIANGLES, 0, 3);
        glBindVertexArray(vao[2]); glDrawArrays(GL_LINES, 0, 6);
-       glBindVertexArray(m._vertarray); glDrawArrays(GL_TRIANGLES, 0, m._numFaces * 3);
+       glBindVertexArray(m._vao); glDrawArrays(GL_TRIANGLES, 0, m._numFaces * 3);
+       glBindVertexArray(0);
        glXSwapBuffers (display, all.window);
 
        printGLErrors();
